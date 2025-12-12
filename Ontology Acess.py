@@ -1,175 +1,102 @@
-# Ontology_Acess.py
-"""
-Acesso à ontologia do Projeto-MORA.
-Permite consultar classes, subclasses, indivíduos e propriedades da ontologia OWL.
-"""
-
-from owlready2 import get_ontology, Thing, default_world
+from owlready2 import *
 
 class OntologyAccess:
-    def __init__(self, path: str = "Project_Ontology.owl"):
-        self.path = path
-        self.onto = get_ontology(path).load()
+    def __init__(self, ontology_path):
+        self.onto = get_ontology(ontology_path).load()
+        self._bind_classes()
+        self._bind_properties()
 
-    # ----------------------------------------------------------------------
-    # --- CONSULTAS BÁSICAS ---
-    # ----------------------------------------------------------------------
+    # ----------------------------------------------------------
+    # Bind OWL Classes to Python attributes
+    # ----------------------------------------------------------
+    def _bind_classes(self):
+        self.Maquina = self.onto.Maquina
+        self.Modelo = self.onto.Modelo
+        self.Estado = self.onto.Estado
+        self.Gravidade = self.onto.Gravidade
+        self.Defeito = self.onto.Defeito
+        self.Funcionario = self.onto.Funcionario
+        self.Senior = self.onto.Senior
+        self.Junior = self.onto.Junior
+        self.Treinando = self.onto.Treinando
 
-    def list_classes(self):
-        """Retorna todas as classes definidas na ontologia."""
-        return [clazz for clazz in self.onto.classes()]
+    # ----------------------------------------------------------
+    # Bind OWL Object Properties
+    # ----------------------------------------------------------
+    def _bind_properties(self):
+        self.Maquina_No_Estado = self.onto.Maquina_No_Estado
+        self.Maquina_Do_Modelo = self.onto.Maquina_Do_Modelo
+        self.Modelo_Da_Maquina = self.onto.Modelo_Da_Maquina
+        self.Defeito_De_Gravidade = self.onto.Defeito_De_Gravidade
+        self.Treinado_por = self.onto.Treinado_por
+        self.Treinando_prop = self.onto.Treinando
 
-    def list_individuals(self):
-        """Retorna todos os indivíduos existentes na ontologia."""
-        return [ind for ind in self.onto.individuals()]
+    # ----------------------------------------------------------
+    # HIGH-LEVEL QUERY FUNCTIONS FOR THE LLM
+    # ----------------------------------------------------------
 
-    def get_class(self, class_name: str):
-        """Retorna uma classe pelo nome."""
-        return getattr(self.onto, class_name, None)
+    # --- MACHINE QUERIES -------------------------------------------------
 
-    def get_individual(self, individual_name: str):
-        """Retorna um indivíduo pelo nome."""
-        return getattr(self.onto, individual_name, None)
+    def get_all_machines(self):
+        return list(self.Maquina.instances())
 
-    # ----------------------------------------------------------------------
-    # --- RELAÇÕES ENTRE CLASSES ---
-    # ----------------------------------------------------------------------
-
-    def get_subclasses(self, class_name: str):
-        """Retorna todas as subclasses de uma classe."""
-        clazz = self.get_class(class_name)
-        if clazz:
-            return list(clazz.subclasses())
+    def get_machine_state(self, machine):
+        if machine.Maquina_No_Estado:
+            return machine.Maquina_No_Estado[0]
         return None
 
-    def get_superclasses(self, class_name: str):
-        """Retorna superclasses."""
-        clazz = self.get_class(class_name)
-        if clazz:
-            return list(clazz.is_a)
+    def get_machine_model(self, machine):
+        if machine.Maquina_Do_Modelo:
+            return machine.Maquina_Do_Modelo[0]
         return None
 
-    # ----------------------------------------------------------------------
-    # --- INDIVÍDUOS, ATRIBUTOS E PROPRIEDADES ---
-    # ----------------------------------------------------------------------
+    # --- DEFECT + GRAVITY ------------------------------------------------
 
-    def get_properties_of_class(self, class_name):
-        """Lista todas as propriedades onde a classe aparece."""
-        clazz = self.get_class(class_name)
-        if clazz is None:
-            return None
-        return clazz.get_class_properties()
+    def get_defect_gravity(self, defect):
+        if defect.Defeito_De_Gravidade:
+            return defect.Defeito_De_Gravidade[0]
+        return None
 
-    def get_individual_properties(self, individual_name):
-        """Lista propriedades e valores de um indivíduo."""
-        ind = self.get_individual(individual_name)
-        if ind is None:
-            return None
+    # --- EMPLOYEE QUERIES ------------------------------------------------
 
-        props = {}
-        for prop in ind.get_properties():
-            props[prop.name] = prop[ind]
+    def get_all_employees(self):
+        return list(self.Funcionario.instances())
 
-        return props
+    def get_seniors(self):
+        return list(self.Senior.instances())
 
-    # ----------------------------------------------------------------------
-    # --- CONSULTA DE ESTADOS, GRAVIDADES, DEFEITOS, FUNCIONÁRIOS ---
-    # ----------------------------------------------------------------------
+    def get_juniors(self):
+        return list(self.Junior.instances())
 
-    def list_states(self):
-        """Retorna todas as subclasses de Estado."""
-        state_class = self.get_class("Estado")
-        if state_class:
-            return list(state_class.subclasses())
-        return []
+    def get_trainees(self):
+        return list(self.Treinando.instances())
 
-    def list_severities(self):
-        """Retorna subclasses de Gravidade."""
-        grav = self.get_class("Gravidade")
-        if grav:
-            return list(grav.subclasses())
-        return []
+    def get_trainee_trainer(self, trainee):
+        if trainee.Treinado_por:
+            return trainee.Treinado_por[0]
+        return None
 
-    def list_defects(self):
-        """Retorna subclasses de Defeito."""
-        defect = self.get_class("Defeito")
-        if defect:
-            return list(defect.subclasses())
-        return []
+    # --- GENERIC UTILITY -------------------------------------------------
 
-    def list_models(self):
-        """Retorna subclasses de Modelo."""
-        model = self.get_class("Modelo")
-        if model:
-            return list(model.subclasses())
-        return []
-
-    def list_machines(self):
-        """Retorna subclasses de Maquina."""
-        maq = self.get_class("Maquina")
-        if maq:
-            return list(maq.subclasses())
-        return []
-
-    def list_workers(self):
-        """Retorna subclasses de Funcionario."""
-        f = self.get_class("Funcionario")
-        if f:
-            return list(f.subclasses())
-        return []
-
-    # ----------------------------------------------------------------------
-    # --- CONSULTAS SEMI-SPARQL ---
-    # ----------------------------------------------------------------------
-
-    def search(self, class_name=None, property_name=None, value=None):
-        """
-        Busca simples: por classe, propriedade ou ambos.
-        """
-        results = []
-
-        # filtrar por classe
-        if class_name:
-            clazz = self.get_class(class_name)
-            if clazz:
-                for ind in clazz.instances():
-                    results.append(ind)
-
-        # filtrar por propriedade
-        if property_name:
-            prop = getattr(self.onto, property_name, None)
-            if prop:
-                for ind in prop.get_relations():
-                    if value is None or value in prop[ind]:
-                        results.append(ind)
-
-        return list(set(results))
-
-    # ----------------------------------------------------------------------
-    # --- EXPORTA PARA A LLM (FORMATO LIMPO) ---
-    # ----------------------------------------------------------------------
-
-    def summarize(self):
-        """
-        Produz um dicionário com:
-        - classes
-        - indivíduos
-        - estados
-        - gravidades
-        - defeitos
-        - equipamentos
-        - funcionários
-        Usado para alimentar a LLM com contexto limpo e estruturado.
-        """
-        return {
-            "Estados": [c.name for c in self.list_states()],
-            "Gravidades": [c.name for c in self.list_severities()],
-            "Defeitos": [c.name for c in self.list_defects()],
-            "Modelos": [c.name for c in self.list_models()],
-            "Maquinas": [c.name for c in self.list_machines()],
-            "Funcionarios": [c.name for c in self.list_workers()],
+    def describe_individual(self, ind):
+        """Return class name and relationships (debug for LLM)."""
+        desc = {
+            "name": ind.name,
+            "classes": [c.name for c in ind.is_a],
+            "relations": {}
         }
+        for prop in self.onto.object_properties():
+            values = prop[ind]
+            if values:
+                desc["relations"][prop.name] = [v.name for v in values]
+        return desc
 
+    def debug_print(self):
+        """Prints all machines and employees for debugging."""
+        print("=== Machines ===")
+        for m in self.get_all_machines():
+            print(m.name, "| State:", self.get_machine_state(m), "| Model:", self.get_machine_model(m))
 
-# Instância global da ontologia
-ontology = OntologyAccess()
+        print("\n=== Employees ===")
+        for e in self.get_all_employees():
+            print(self.describe_individual(e))
